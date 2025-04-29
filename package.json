@@ -1,0 +1,20 @@
+{
+  "name": "travel",
+  "version": "1.0.0",
+  "description": "旅行行程规划网站",
+  "main": "src/worker.js",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "migrate": "node scripts/migrate.js",
+    "d1:init": "wrangler d1 execute travel --file=./schema.sql",
+    "d1:migrate": "node scripts/migrate.js | wrangler d1 execute travel",
+    "start": "wrangler dev"
+  },
+  "dependencies": {
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "wrangler": "^4.13.2"
+  }
+} 

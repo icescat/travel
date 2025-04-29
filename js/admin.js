@@ -41,11 +41,28 @@ async function init() {
  */
 async function loadTripData() {
     try {
-        const response = await fetch('../data/trip-data.json');
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        // 获取所有行程列表
+        const tripsResponse = await fetch(CONFIG.api.baseUrl + CONFIG.api.endpoints.trips);
+        if (!tripsResponse.ok) {
+            throw new Error(`HTTP错误! 状态码: ${tripsResponse.status}`);
         }
-        tripData = await response.json();
+        
+        const trips = await tripsResponse.json();
+        
+        if (!trips || !Array.isArray(trips.results) || trips.results.length === 0) {
+            throw new Error('没有找到任何行程数据');
+        }
+        
+        // 获取第一个行程的详细信息
+        const tripId = trips.results[0].id;
+        const tripDetailsUrl = CONFIG.api.baseUrl + CONFIG.api.endpoints.tripDetails.replace('{id}', tripId);
+        const tripDetailsResponse = await fetch(tripDetailsUrl);
+        
+        if (!tripDetailsResponse.ok) {
+            throw new Error(`HTTP错误! 状态码: ${tripDetailsResponse.status}`);
+        }
+        
+        tripData = await tripDetailsResponse.json();
         console.log('行程数据加载成功:', tripData);
     } catch (error) {
         console.error('加载行程数据失败:', error);
@@ -1105,65 +1122,67 @@ function fallbackCopyToClipboard(text) {
  * 备份数据
  */
 function backupData() {
-    if (!tripData) return;
-    
-    const jsonString = JSON.stringify(tripData, null, 2);
-    const blob = new Blob([jsonString], { type: 'application/json' });
+    const dataStr = JSON.stringify(tripData, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
-    
     const a = document.createElement('a');
     a.href = url;
-    a.download = `trip-data-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.download = `travel_backup_${new Date().toISOString().split('T')[0]}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
-    showMessage('数据已导出为JSON文件', 'success');
+    showMessage('数据备份成功', 'success');
 }
 
 /**
- * 从文件恢复数据
+ * 恢复数据
  */
-function restoreData() {
-    const fileInput = document.getElementById('restore-file');
-    if (!fileInput.files || fileInput.files.length === 0) {
-        showMessage('请先选择JSON文件', 'error');
-        return;
-    }
+async function restoreData() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
     
-    const file = fileInput.files[0];
-    const reader = new FileReader();
-    
-    reader.onload = function(e) {
+    input.onchange = async function(e) {
         try {
-            const data = JSON.parse(e.target.result);
+            const file = e.target.files[0];
+            if (!file) return;
             
-            // 简单验证是否是有效的行程数据
-            if (!data.tripInfo || !data.dailySchedule) {
-                showMessage('选择的文件不是有效的行程数据', 'error');
-                return;
-            }
-            
-            // 更新数据
-            tripData = data;
-            
-            // 更新视图
-            renderTripInfo();
-            renderScheduleView();
-            updateJsonEditor();
-            
-            // 标记数据已修改
-            dataModified = true;
-            
-            showMessage('已成功从文件恢复数据', 'success');
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    // 验证数据结构
+                    if (!data.tripInfo || !data.dailySchedule) {
+                        throw new Error('无效的数据格式');
+                    }
+                    
+                    tripData = data;
+                    dataModified = true;
+                    
+                    // 保存到服务器
+                    await saveData();
+                    
+                    // 更新界面
+                    renderTripInfo();
+                    renderScheduleView();
+                    updateJsonEditor();
+                    
+                    showMessage('数据恢复成功', 'success');
+                } catch (error) {
+                    console.error('恢复数据失败:', error);
+                    showMessage('恢复失败: ' + error.message, 'error');
+                }
+            };
+            reader.readAsText(file);
         } catch (error) {
-            console.error('解析JSON文件失败', error);
-            showMessage('解析JSON文件失败，请确保文件格式正确', 'error');
+            console.error('读取文件失败:', error);
+            showMessage('读取文件失败', 'error');
         }
     };
     
-    reader.readAsText(file);
+    input.click();
 }
 
 /**
@@ -1188,26 +1207,45 @@ function generateData() {
  */
 async function saveData() {
     try {
-        const jsonString = JSON.stringify(tripData, null, 2);
+        if (!dataModified) {
+            console.log('数据未修改，无需保存');
+            return;
+        }
         
-        // 创建下载链接
-        const blob = new Blob([jsonString], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
+        // 获取所有行程列表以获取当前行程ID
+        const tripsResponse = await fetch(CONFIG.api.baseUrl + CONFIG.api.endpoints.trips);
+        if (!tripsResponse.ok) {
+            throw new Error(`HTTP错误! 状态码: ${tripsResponse.status}`);
+        }
         
-        // 显示下载提示
-        showMessage('请保存文件到 data/trip-data.json (实际项目中应自动保存到服务器)', 'success');
+        const trips = await tripsResponse.json();
         
-        // 自动下载
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'trip-data.json';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+        if (!trips || !Array.isArray(trips.results) || trips.results.length === 0) {
+            throw new Error('没有找到任何行程数据');
+        }
+        
+        const tripId = trips.results[0].id;
+        const tripDetailsUrl = CONFIG.api.baseUrl + CONFIG.api.endpoints.tripDetails.replace('{id}', tripId);
+        
+        // 发送PUT请求更新行程数据
+        const response = await fetch(tripDetailsUrl, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(tripData)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`保存失败: ${response.status} ${response.statusText}`);
+        }
+        
+        dataModified = false;
+        showMessage('数据保存成功', 'success');
+        console.log('数据保存成功');
     } catch (error) {
-        console.error('保存数据失败', error);
-        showMessage('保存数据失败', 'error');
+        console.error('保存数据失败:', error);
+        showMessage('保存失败: ' + error.message, 'error');
     }
 }
 

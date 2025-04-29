@@ -181,7 +181,7 @@ AMAP_WEB_SECRET=da122353acc05b7515f2c34dcdd5a753
 AMAP_SERVICE_KEY=e4ecf5c4ecbd7f9fc9a971affe1bf54e
 
 # Visual Crossing Weather API（待添加）
-WEATHER_API_KEY=your_api_key_here
+WEATHER_API_KEY=XLH73AM2QFGG57GMSMJGXGXEW
 ```
 
 ### 开发环境检查清单

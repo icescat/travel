@@ -1,0 +1,12 @@
+name = "travel-api"
+main = "src/worker.js"
+compatibility_date = "2024-01-01"
+
+[vars]
+AMAP_WEB_KEY = "09bcdeabf70a1f466cbf766750c244bf"
+AMAP_SERVICE_KEY = "e4ecf5c4ecbd7f9fc9a971affe1bf54e"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "travel"
+database_id = "fb82de14-c431-4374-83c1-f4e1dded87bf" 

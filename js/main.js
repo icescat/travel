@@ -321,40 +321,45 @@ function initMap() {
  */
 async function loadTripData() {
     try {
-        console.log('开始加载行程数据，数据路径:', CONFIG.dataPath);
-        const response = await fetch(CONFIG.dataPath);
+        console.log('开始从API加载行程数据');
         
-        if (!response.ok) {
-            throw new Error(`HTTP错误! 状态码: ${response.status}, 状态文本: ${response.statusText}`);
+        // 获取所有行程列表
+        const tripsResponse = await fetch(CONFIG.api.baseUrl + CONFIG.api.endpoints.trips);
+        
+        if (!tripsResponse.ok) {
+            throw new Error(`HTTP错误! 状态码: ${tripsResponse.status}, 状态文本: ${tripsResponse.statusText}`);
         }
         
-        const contentType = response.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            console.warn('警告: 响应Content-Type不是JSON格式:', contentType);
+        const trips = await tripsResponse.json();
+        
+        if (!trips || !Array.isArray(trips.results) || trips.results.length === 0) {
+            throw new Error('没有找到任何行程数据');
         }
         
-        const text = await response.text();
+        // 获取第一个行程的详细信息
+        const tripId = trips.results[0].id;
+        const tripDetailsUrl = CONFIG.api.baseUrl + CONFIG.api.endpoints.tripDetails.replace('{id}', tripId);
+        const tripDetailsResponse = await fetch(tripDetailsUrl);
         
-        try {
-            // 尝试解析JSON
-            tripData = JSON.parse(text);
-            console.log('行程数据加载成功:', tripData);
-            
-            // 验证数据结构
-            if (!tripData.dailySchedule || !Array.isArray(tripData.dailySchedule)) {
-                throw new Error('JSON数据格式错误: 缺少dailySchedule数组');
-            }
-            
-            // 优化坐标数据
-            optimizeCoordinates();
-            
-            // 预缓存POI信息
-            await precachePOIData();
-        } catch (parseError) {
-            console.error('JSON解析错误:', parseError);
-            console.error('原始响应文本:', text.substring(0, 500) + '...');
-            throw new Error('行程数据格式不正确，无法解析JSON，请检查data/trip-data.json文件。');
+        if (!tripDetailsResponse.ok) {
+            throw new Error(`HTTP错误! 状态码: ${tripDetailsResponse.status}, 状态文本: ${tripDetailsResponse.statusText}`);
         }
+        
+        // 解析行程详情数据
+        tripData = await tripDetailsResponse.json();
+        
+        if (!tripData.dailySchedule || !Array.isArray(tripData.dailySchedule)) {
+            throw new Error('行程数据格式错误: 缺少dailySchedule数组');
+        }
+        
+        console.log('行程数据加载成功:', tripData);
+        
+        // 优化坐标数据
+        optimizeCoordinates();
+        
+        // 预缓存POI信息
+        await precachePOIData();
+        
     } catch (error) {
         console.error('加载行程数据失败:', error);
         
@@ -367,8 +372,8 @@ async function loadTripData() {
                     <p>${error.message}</p>
                     <p>请检查以下可能的问题:</p>
                     <ul style="text-align: left; margin: 10px auto; max-width: 500px;">
-                        <li>确认 data/trip-data.json 文件存在</li>
-                        <li>检查 JSON 格式是否正确</li>
+                        <li>确认API服务器是否正常运行</li>
+                        <li>检查网络连接是否正常</li>
                         <li>尝试刷新页面</li>
                     </ul>
                     <button onclick="location.reload()" style="padding: 8px 16px; background: #4B89DC; color: white; border: none; border-radius: 4px; cursor: pointer;">重新加载页面</button>
@@ -385,7 +390,7 @@ async function loadTripData() {
             `;
         }
         
-        throw new Error('无法加载行程数据，请检查data/trip-data.json文件。');
+        throw new Error('无法加载行程数据，请检查API服务是否正常。');
     }
 }
 

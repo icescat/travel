@@ -8,8 +8,13 @@ const CONFIG = {
     // 数据配置
     dataPath: 'data/trip-data.json', // 行程数据的JSON文件路径
     
-    // 高德地图API配置
+    // API配置
     api: {
+        baseUrl: 'https://travel-api.icescat.workers.dev/api', // API基础URL
+        endpoints: {
+            trips: '/trips',
+            tripDetails: '/trips/{id}'
+        },
         key: '09bcdeabf70a1f466cbf766750c244bf', // 高德地图API Key
         securityJsCode: 'da122353acc05b7515f2c34dcdd5a753',
         useCache: true, // 是否使用API数据缓存
