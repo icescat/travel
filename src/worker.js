@@ -101,12 +101,16 @@ async function getTripDetails(db, tripId) {
  * @returns {Promise<Object>} 更新结果
  */
 async function updateTripDetails(db, tripId, tripData) {
+  console.log(`更新行程 ${tripId} 的详细信息`);
+  
   // 开始事务
+  console.log('开始数据库事务');
   await db.exec('BEGIN TRANSACTION');
   
   try {
     // 1. 更新行程基本信息
-    await db.prepare(
+    console.log('更新行程基本信息');
+    const tripUpdateResult = await db.prepare(
       'UPDATE trips SET title = ?, start_date = ?, days = ?, total_distance = ?, description = ? WHERE id = ?'
     ).bind(
       tripData.tripInfo.title,
@@ -117,8 +121,17 @@ async function updateTripDetails(db, tripId, tripData) {
       tripId
     ).run();
     
+    console.log('行程基本信息更新结果:', tripUpdateResult);
+    
+    if (!tripUpdateResult.success) {
+      throw new Error('更新行程基本信息失败');
+    }
+    
     // 2. 处理每日行程
+    console.log(`处理${tripData.dailySchedule.length}天的行程`);
     for (const day of tripData.dailySchedule) {
+      console.log(`处理第${day.day}天行程`);
+      
       // 查找此天行程是否存在
       const existingSchedule = await db.prepare(
         'SELECT id FROM daily_schedules WHERE trip_id = ? AND day = ?'
@@ -129,7 +142,9 @@ async function updateTripDetails(db, tripId, tripData) {
       if (existingSchedule) {
         // 更新已有日程
         scheduleId = existingSchedule.id;
-        await db.prepare(
+        console.log(`更新已有日程，ID: ${scheduleId}`);
+        
+        const updateResult = await db.prepare(
           'UPDATE daily_schedules SET title = ?, date = ?, description = ?, city = ? WHERE id = ?'
         ).bind(
           day.title,
@@ -139,24 +154,33 @@ async function updateTripDetails(db, tripId, tripData) {
           scheduleId
         ).run();
         
+        console.log('日程更新结果:', updateResult);
+        
         // 删除此日程下的所有景点，后面重新插入
         const existingSpots = await db.prepare(
           'SELECT id FROM spots WHERE schedule_id = ?'
         ).bind(scheduleId).all();
         
+        console.log(`删除${existingSpots.results ? existingSpots.results.length : 0}个已有景点`);
+        
         // 删除景点链接
-        for (const spot of existingSpots.results) {
+        for (const spot of (existingSpots.results || [])) {
+          console.log(`删除景点ID ${spot.id} 的链接`);
           await db.prepare(
             'DELETE FROM spot_links WHERE spot_id = ?'
           ).bind(spot.id).run();
         }
         
         // 删除景点
-        await db.prepare(
+        console.log(`删除schedule_id为${scheduleId}的所有景点`);
+        const deleteResult = await db.prepare(
           'DELETE FROM spots WHERE schedule_id = ?'
         ).bind(scheduleId).run();
+        
+        console.log('景点删除结果:', deleteResult);
       } else {
         // 插入新日程
+        console.log('插入新日程');
         const result = await db.prepare(
           'INSERT INTO daily_schedules (trip_id, day, title, date, description, city) VALUES (?, ?, ?, ?, ?, ?)'
         ).bind(
@@ -168,12 +192,20 @@ async function updateTripDetails(db, tripId, tripData) {
           day.city || ''
         ).run();
         
-        scheduleId = result.meta.last_row_id;
+        console.log('新日程插入结果:', result);
+        
+        scheduleId = result.meta ? result.meta.last_row_id : null;
+        if (!scheduleId) {
+          throw new Error('插入新日程失败，未获取到ID');
+        }
+        console.log(`新日程ID: ${scheduleId}`);
       }
       
       // 3. 处理景点
       if (day.spots && Array.isArray(day.spots)) {
+        console.log(`处理${day.spots.length}个景点`);
         for (const spot of day.spots) {
+          console.log(`添加景点: ${spot.name}`);
           // 插入景点
           const spotResult = await db.prepare(
             'INSERT INTO spots (schedule_id, time, name, description, location, transport, cost, poi_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
@@ -188,12 +220,20 @@ async function updateTripDetails(db, tripId, tripData) {
             spot.poiId || ''
           ).run();
           
-          const spotId = spotResult.meta.last_row_id;
+          console.log('景点插入结果:', spotResult);
+          
+          const spotId = spotResult.meta ? spotResult.meta.last_row_id : null;
+          if (!spotId) {
+            throw new Error('插入景点失败，未获取到ID');
+          }
+          console.log(`新景点ID: ${spotId}`);
           
           // 4. 处理链接
           if (spot.links && Array.isArray(spot.links)) {
+            console.log(`处理${spot.links.length}个链接`);
             for (const link of spot.links) {
-              await db.prepare(
+              console.log(`添加链接: ${link.title}`);
+              const linkResult = await db.prepare(
                 'INSERT INTO spot_links (spot_id, title, url, type) VALUES (?, ?, ?, ?)'
               ).bind(
                 spotId,
@@ -201,6 +241,8 @@ async function updateTripDetails(db, tripId, tripData) {
                 link.url,
                 link.type || 'article'
               ).run();
+              
+              console.log('链接插入结果:', linkResult);
             }
           }
         }
@@ -208,11 +250,13 @@ async function updateTripDetails(db, tripId, tripData) {
     }
     
     // 提交事务
+    console.log('提交事务');
     await db.exec('COMMIT');
     
     return { success: true, message: '行程数据更新成功' };
   } catch (error) {
     // 回滚事务
+    console.error('更新行程失败，回滚事务:', error);
     await db.exec('ROLLBACK');
     throw error;
   }
@@ -225,6 +269,8 @@ async function updateTripDetails(db, tripId, tripData) {
  * @returns {Promise<Response>} 响应对象
  */
 async function handleRequest(request, env) {
+  console.log(`处理请求: ${request.method} ${request.url}`);
+  
   const corsHeaders = handleCORS(request);
   if (request.method === 'OPTIONS') {
     return corsHeaders;
@@ -232,9 +278,11 @@ async function handleRequest(request, env) {
 
   const url = new URL(request.url);
   const path = url.pathname;
+  console.log(`请求路径: ${path}`);
 
   try {
     if (path === '/api/trips') {
+      console.log('获取所有行程列表');
       const trips = await getTrips(env.DB);
       return new Response(JSON.stringify(trips), {
         headers: {
@@ -246,12 +294,15 @@ async function handleRequest(request, env) {
     
     if (path.startsWith('/api/trips/')) {
       const tripId = path.split('/')[3];
+      console.log(`操作行程ID: ${tripId}`);
       
       // GET请求 - 获取行程详情
       if (request.method === 'GET') {
+        console.log('GET请求 - 获取行程详情');
         const tripDetails = await getTripDetails(env.DB, tripId);
         
         if (!tripDetails) {
+          console.log('行程不存在');
           return new Response(JSON.stringify({ error: '行程不存在' }), {
             status: 404,
             headers: {
@@ -271,11 +322,20 @@ async function handleRequest(request, env) {
       
       // PUT请求 - 更新行程详情
       if (request.method === 'PUT') {
-        const tripData = await request.json();
+        console.log('PUT请求 - 更新行程详情');
         
-        // 验证必要字段
-        if (!tripData.tripInfo || !tripData.dailySchedule) {
-          return new Response(JSON.stringify({ error: '数据格式不正确' }), {
+        // 读取请求正文
+        let tripData;
+        try {
+          tripData = await request.json();
+          console.log('接收到的数据结构：', JSON.stringify({
+            hasInfo: !!tripData.tripInfo,
+            hasDailySchedule: !!tripData.dailySchedule,
+            daysCount: tripData.dailySchedule ? tripData.dailySchedule.length : 0
+          }));
+        } catch (error) {
+          console.error('解析请求JSON失败:', error);
+          return new Response(JSON.stringify({ error: '无效的JSON数据格式' }), {
             status: 400,
             headers: {
               'Content-Type': 'application/json',
@@ -284,18 +344,44 @@ async function handleRequest(request, env) {
           });
         }
         
-        // 更新行程详情
-        const result = await updateTripDetails(env.DB, tripId, tripData);
+        // 验证必要字段
+        if (!tripData.tripInfo || !tripData.dailySchedule) {
+          console.log('数据格式不正确，缺少必要字段');
+          return new Response(JSON.stringify({ error: '数据格式不正确，缺少tripInfo或dailySchedule' }), {
+            status: 400,
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        }
         
-        return new Response(JSON.stringify(result), {
-          headers: {
-            'Content-Type': 'application/json',
-            ...corsHeaders
-          }
-        });
+        try {
+          // 更新行程详情
+          console.log('开始更新数据库');
+          const result = await updateTripDetails(env.DB, tripId, tripData);
+          console.log('数据库更新结果:', result);
+          
+          return new Response(JSON.stringify(result), {
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        } catch (updateError) {
+          console.error('更新数据库失败:', updateError);
+          return new Response(JSON.stringify({ error: `更新数据库失败: ${updateError.message}`, stack: updateError.stack }), {
+            status: 500,
+            headers: {
+              'Content-Type': 'application/json',
+              ...corsHeaders
+            }
+          });
+        }
       }
     }
 
+    console.log('接口不存在');
     return new Response(JSON.stringify({ error: '接口不存在' }), {
       status: 404,
       headers: {
@@ -305,7 +391,8 @@ async function handleRequest(request, env) {
     });
 
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('处理请求时出错:', error);
+    return new Response(JSON.stringify({ error: error.message, stack: error.stack }), {
       status: 500,
       headers: {
         'Content-Type': 'application/json',
