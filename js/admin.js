@@ -124,6 +124,9 @@ function bindEvents() {
     document.getElementById('close-spot-modal').addEventListener('click', closeSpotModal);
     document.getElementById('save-spot-btn').addEventListener('click', saveSpot);
     
+    // 获取坐标按钮
+    document.getElementById('get-location-btn').addEventListener('click', getLocationFromPOI);
+    
     // POI搜索功能
     document.getElementById('search-poi-btn').addEventListener('click', searchPOI);
     document.getElementById('copy-poi-btn').addEventListener('click', copyPOIInfo);
@@ -1035,4 +1038,48 @@ function showMessage(message, type = 'success') {
     setTimeout(() => {
         messageElement.style.display = 'none';
     }, 3000);
+}
+
+/**
+ * 根据POI ID获取坐标
+ */
+function getLocationFromPOI() {
+    const poiId = document.getElementById('spot-poi-id-input').value.trim();
+    if (!poiId) {
+        showMessage('请先输入POI ID', 'error');
+        return;
+    }
+    
+    // 显示加载状态
+    document.getElementById('get-location-btn').textContent = '加载中...';
+    document.getElementById('get-location-btn').disabled = true;
+    
+    // 使用高德地图的POI详情搜索
+    const placeSearch = new AMap.PlaceSearch();
+    placeSearch.getDetails(poiId, function(status, result) {
+        // 恢复按钮状态
+        document.getElementById('get-location-btn').textContent = '获取坐标';
+        document.getElementById('get-location-btn').disabled = false;
+        
+        if (status === 'complete' && result.info === 'OK' && result.poiList && result.poiList.pois && result.poiList.pois.length > 0) {
+            const poi = result.poiList.pois[0];
+            
+            // 更新POI名称（如果当前名称为空）
+            const currentName = document.getElementById('spot-name-input').value.trim();
+            if (!currentName) {
+                document.getElementById('spot-name-input').value = poi.name || '';
+            }
+            
+            // 更新坐标
+            if (poi.location) {
+                const location = `${poi.location.lng},${poi.location.lat}`;
+                document.getElementById('spot-location-input').value = location;
+                showMessage('已成功获取坐标', 'success');
+            } else {
+                showMessage('获取坐标失败，该POI无位置信息', 'error');
+            }
+        } else {
+            showMessage('获取坐标失败，请检查POI ID是否正确', 'error');
+        }
+    });
 } 

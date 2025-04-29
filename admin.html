@@ -443,7 +443,11 @@
             
             <div class="form-group">
                 <label for="spot-poi-id-input">POI ID</label>
-                <input type="text" id="spot-poi-id-input" placeholder="高德地图POI ID">
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="spot-poi-id-input" placeholder="高德地图POI ID" style="flex: 1;">
+                    <button id="get-location-btn" class="btn-secondary">获取坐标</button>
+                </div>
+                <small style="color: #666; margin-top: 5px; display: block;">输入高德地图POI ID后点击"获取坐标"可自动填充坐标</small>
             </div>
             
             <div class="form-group">
