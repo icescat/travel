@@ -94,7 +94,7 @@ async function getTripDetails(db, tripId) {
 }
 
 /**
- * 更新行程信息
+ * 更新行程信息 - 简化版，减少数据库操作次数
  * @param {D1Database} db D1数据库实例
  * @param {string} tripId 行程ID
  * @param {Object} tripData 行程数据
@@ -118,7 +118,7 @@ async function updateTripDetails(db, tripId, tripData) {
     throw new Error('dailySchedule字段缺失、非数组或为空数组');
   }
   
-  // 检查并设置默认值
+  // 清理和准备安全的数据结构
   const safeTrip = {
     tripInfo: {
       title: tripData.tripInfo.title || '未命名行程',
@@ -127,50 +127,46 @@ async function updateTripDetails(db, tripId, tripData) {
       totalDistance: tripData.tripInfo.totalDistance || '0公里',
       description: tripData.tripInfo.description || ''
     },
-    dailySchedule: tripData.dailySchedule.map((day, index) => {
-      if (!day) return null; // 跳过无效日程
-      
-      return {
+    dailySchedule: tripData.dailySchedule
+      .filter(day => day) // 过滤掉null或undefined
+      .map((day, index) => ({
         day: day.day || (index + 1),
         title: day.title || `第${day.day || (index + 1)}天`,
         date: day.date || '',
         description: day.description || '',
         city: day.city || '',
-        spots: Array.isArray(day.spots) ? day.spots.map(spot => {
-          if (!spot) return null; // 跳过无效景点
-          
-          return {
-            name: spot.name || '未命名景点',
-            time: spot.time || '',
-            description: spot.description || '',
-            location: spot.location || '',
-            transport: spot.transport || '自驾',
-            cost: spot.cost || '',
-            poiId: spot.poiId || '',
-            links: Array.isArray(spot.links) ? spot.links.filter(link => link && link.title && link.url).map(link => ({
-              title: link.title,
-              url: link.url,
-              type: link.type || 'article'
-            })) : []
-          };
-        }).filter(spot => spot !== null) : [] // 过滤掉无效景点
-      };
-    }).filter(day => day !== null) // 过滤掉无效日程
+        spots: Array.isArray(day.spots) 
+          ? day.spots
+              .filter(spot => spot) // 过滤掉null或undefined
+              .map(spot => ({
+                name: spot.name || '未命名景点',
+                time: spot.time || '',
+                description: spot.description || '',
+                location: spot.location || '',
+                transport: spot.transport || '自驾',
+                cost: spot.cost || '',
+                poiId: spot.poiId || '',
+                links: Array.isArray(spot.links) 
+                  ? spot.links
+                      .filter(link => link && link.title && link.url)
+                      .map(link => ({
+                        title: link.title || '',
+                        url: link.url || '',
+                        type: link.type || 'article'
+                      }))
+                  : []
+              }))
+          : []
+      }))
   };
   
   // 开始事务
   console.log('开始数据库事务');
   try {
-    await db.exec('BEGIN TRANSACTION');
-  } catch (error) {
-    console.error('开始事务失败:', error);
-    throw new Error(`开始事务失败: ${error.message}`);
-  }
-  
-  try {
+    // 每个操作都作为独立事务处理，避免长事务
+    
     // 1. 更新行程基本信息
     console.log('更新行程基本信息');
-    
     const tripUpdateResult = await db.prepare(
       'UPDATE trips SET title = ?, start_date = ?, days = ?, total_distance = ?, description = ? WHERE id = ?'
     ).bind(
@@ -182,30 +178,31 @@ async function updateTripDetails(db, tripId, tripData) {
       tripId
     ).run();
     
-    console.log('行程基本信息更新结果:', tripUpdateResult);
-    
     if (!tripUpdateResult.success) {
       throw new Error('更新行程基本信息失败');
     }
     
-    // 2. 处理每日行程
-    console.log(`处理${safeTrip.dailySchedule.length}天的行程`);
+    // 2. 获取现有日程列表
+    const existingSchedules = await db.prepare(
+      'SELECT id, day FROM daily_schedules WHERE trip_id = ?'
+    ).bind(tripId).all();
+    
+    const scheduleMap = new Map();
+    if (existingSchedules.results) {
+      existingSchedules.results.forEach(schedule => {
+        scheduleMap.set(schedule.day, schedule.id);
+      });
+    }
+    
+    // 3. 处理每个日程
     for (const day of safeTrip.dailySchedule) {
-      console.log(`处理第${day.day}天行程`);
-      
-      // 查找此天行程是否存在
-      const existingSchedule = await db.prepare(
-        'SELECT id FROM daily_schedules WHERE trip_id = ? AND day = ?'
-      ).bind(tripId, day.day).first();
-      
       let scheduleId;
       
-      if (existingSchedule) {
-        // 更新已有日程
-        scheduleId = existingSchedule.id;
-        console.log(`更新已有日程，ID: ${scheduleId}`);
-        
-        const updateResult = await db.prepare(
+      // 3.1 更新或插入日程
+      if (scheduleMap.has(day.day)) {
+        // 更新现有日程
+        scheduleId = scheduleMap.get(day.day);
+        await db.prepare(
           'UPDATE daily_schedules SET title = ?, date = ?, description = ?, city = ? WHERE id = ?'
         ).bind(
           day.title,
@@ -214,43 +211,9 @@ async function updateTripDetails(db, tripId, tripData) {
           day.city,
           scheduleId
         ).run();
-        
-        console.log('日程更新结果:', updateResult);
-        
-        if (!updateResult.success) {
-          throw new Error(`更新日程失败: 日程ID ${scheduleId}`);
-        }
-        
-        // 删除此日程下的所有景点，后面重新插入
-        const existingSpots = await db.prepare(
-          'SELECT id FROM spots WHERE schedule_id = ?'
-        ).bind(scheduleId).all();
-        
-        console.log(`删除${existingSpots.results ? existingSpots.results.length : 0}个已有景点`);
-        
-        // 删除景点链接
-        if (existingSpots.results && existingSpots.results.length > 0) {
-          for (const spot of existingSpots.results) {
-            console.log(`删除景点ID ${spot.id} 的链接`);
-            const deleteLinksResult = await db.prepare(
-              'DELETE FROM spot_links WHERE spot_id = ?'
-            ).bind(spot.id).run();
-            
-            console.log('链接删除结果:', deleteLinksResult);
-          }
-        }
-        
-        // 删除景点
-        console.log(`删除schedule_id为${scheduleId}的所有景点`);
-        const deleteResult = await db.prepare(
-          'DELETE FROM spots WHERE schedule_id = ?'
-        ).bind(scheduleId).run();
-        
-        console.log('景点删除结果:', deleteResult);
       } else {
         // 插入新日程
-        console.log('插入新日程');
-        const result = await db.prepare(
+        const insertResult = await db.prepare(
           'INSERT INTO daily_schedules (trip_id, day, title, date, description, city) VALUES (?, ?, ?, ?, ?, ?)'
         ).bind(
           tripId,
@@ -261,22 +224,21 @@ async function updateTripDetails(db, tripId, tripData) {
           day.city
         ).run();
         
-        console.log('新日程插入结果:', result);
-        
-        scheduleId = result.meta ? result.meta.last_row_id : null;
-        if (!scheduleId) {
-          throw new Error('插入新日程失败，未获取到ID');
+        if (!insertResult.meta || !insertResult.meta.last_row_id) {
+          throw new Error(`插入日程失败: 第${day.day}天`);
         }
-        console.log(`新日程ID: ${scheduleId}`);
+        
+        scheduleId = insertResult.meta.last_row_id;
       }
       
-      // 3. 处理景点
-      if (day.spots && Array.isArray(day.spots) && day.spots.length > 0) {
-        console.log(`处理${day.spots.length}个景点`);
+      // 3.2 删除该日程的所有现有景点及链接 (使用级联删除)
+      await db.prepare('DELETE FROM spots WHERE schedule_id = ?').bind(scheduleId).run();
+      
+      // 3.3 为该日程插入新景点
+      if (day.spots && day.spots.length > 0) {
         for (const spot of day.spots) {
-          console.log(`添加景点: ${spot.name}`);
           // 插入景点
-          const spotResult = await db.prepare(
+          const spotInsertResult = await db.prepare(
             'INSERT INTO spots (schedule_id, time, name, description, location, transport, cost, poi_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
           ).bind(
             scheduleId,
@@ -289,24 +251,16 @@ async function updateTripDetails(db, tripId, tripData) {
             spot.poiId
           ).run();
           
-          console.log('景点插入结果:', spotResult);
-          
-          if (!spotResult.success) {
+          if (!spotInsertResult.meta || !spotInsertResult.meta.last_row_id) {
             throw new Error(`插入景点失败: ${spot.name}`);
           }
           
-          const spotId = spotResult.meta ? spotResult.meta.last_row_id : null;
-          if (!spotId) {
-            throw new Error('插入景点失败，未获取到ID');
-          }
-          console.log(`新景点ID: ${spotId}`);
+          const spotId = spotInsertResult.meta.last_row_id;
           
-          // 4. 处理链接
-          if (spot.links && Array.isArray(spot.links) && spot.links.length > 0) {
-            console.log(`处理${spot.links.length}个链接`);
+          // 插入链接
+          if (spot.links && spot.links.length > 0) {
             for (const link of spot.links) {
-              console.log(`添加链接: ${link.title}`);
-              const linkResult = await db.prepare(
+              await db.prepare(
                 'INSERT INTO spot_links (spot_id, title, url, type) VALUES (?, ?, ?, ?)'
               ).bind(
                 spotId,
@@ -314,33 +268,15 @@ async function updateTripDetails(db, tripId, tripData) {
                 link.url,
                 link.type
               ).run();
-              
-              console.log('链接插入结果:', linkResult);
-              
-              if (!linkResult.success) {
-                throw new Error(`插入链接失败: ${link.title}`);
-              }
             }
           }
         }
-      } else {
-        console.log('该日程没有景点数据');
       }
     }
     
-    // 提交事务
-    console.log('提交事务');
-    await db.exec('COMMIT');
-    
     return { success: true, message: '行程数据更新成功' };
   } catch (error) {
-    // 回滚事务
-    console.error('更新行程失败，回滚事务:', error);
-    try {
-      await db.exec('ROLLBACK');
-    } catch (rollbackError) {
-      console.error('回滚事务失败:', rollbackError);
-    }
+    console.error('更新行程失败:', error);
     throw error;
   }
 }
