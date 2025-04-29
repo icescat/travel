@@ -986,6 +986,12 @@ async function saveData() {
             return;
         }
         
+        console.log('准备保存数据，当前tripData结构:', {
+            hasInfo: !!tripData.tripInfo,
+            hasDailySchedule: !!tripData.dailySchedule,
+            daysCount: tripData.dailySchedule ? tripData.dailySchedule.length : 0
+        });
+        
         // 获取所有行程列表以获取当前行程ID
         const tripsResponse = await fetch(CONFIG.api.baseUrl + CONFIG.api.endpoints.trips);
         if (!tripsResponse.ok) {
@@ -993,6 +999,7 @@ async function saveData() {
         }
         
         const trips = await tripsResponse.json();
+        console.log('成功获取行程列表:', trips);
         
         if (!trips || !Array.isArray(trips.results) || trips.results.length === 0) {
             throw new Error('没有找到任何行程数据');
@@ -1000,6 +1007,15 @@ async function saveData() {
         
         const tripId = trips.results[0].id;
         const tripDetailsUrl = CONFIG.api.baseUrl + CONFIG.api.endpoints.tripDetails.replace('{id}', tripId);
+        console.log('行程ID:', tripId);
+        console.log('行程详情URL:', tripDetailsUrl);
+        
+        // 记录请求数据
+        console.log('发送数据预览:', JSON.stringify({
+            tripInfo: tripData.tripInfo,
+            dailyScheduleCount: tripData.dailySchedule.length,
+            firstDaySpotCount: tripData.dailySchedule[0].spots ? tripData.dailySchedule[0].spots.length : 0
+        }));
         
         // 发送PUT请求更新行程数据
         const response = await fetch(tripDetailsUrl, {
@@ -1010,8 +1026,26 @@ async function saveData() {
             body: JSON.stringify(tripData)
         });
         
+        // 无论请求成功还是失败，尝试获取详细错误信息
+        let responseText;
+        let responseJson;
+        
+        try {
+            responseText = await response.text();
+            console.log('响应文本:', responseText);
+            
+            try {
+                responseJson = JSON.parse(responseText);
+                console.log('响应JSON:', responseJson);
+            } catch (e) {
+                console.log('响应不是有效的JSON格式');
+            }
+        } catch (e) {
+            console.error('读取响应文本失败:', e);
+        }
+        
         if (!response.ok) {
-            throw new Error(`保存失败: ${response.status} ${response.statusText}`);
+            throw new Error(`保存失败: ${response.status} ${response.statusText} - ${responseText || '无响应详情'}`);
         }
         
         dataModified = false;

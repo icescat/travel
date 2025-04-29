@@ -109,6 +109,55 @@ async function updateTripDetails(db, tripId, tripData) {
     daysCount: tripData.dailySchedule ? tripData.dailySchedule.length : 0
   }));
   
+  // 验证数据的完整性
+  if (!tripData.tripInfo) {
+    throw new Error('tripInfo字段缺失或为空');
+  }
+  
+  if (!tripData.dailySchedule || !Array.isArray(tripData.dailySchedule) || tripData.dailySchedule.length === 0) {
+    throw new Error('dailySchedule字段缺失、非数组或为空数组');
+  }
+  
+  // 检查并设置默认值
+  const safeTrip = {
+    tripInfo: {
+      title: tripData.tripInfo.title || '未命名行程',
+      date: tripData.tripInfo.date || new Date().toISOString().split('T')[0],
+      days: tripData.tripInfo.days || 1,
+      totalDistance: tripData.tripInfo.totalDistance || '0公里',
+      description: tripData.tripInfo.description || ''
+    },
+    dailySchedule: tripData.dailySchedule.map((day, index) => {
+      if (!day) return null; // 跳过无效日程
+      
+      return {
+        day: day.day || (index + 1),
+        title: day.title || `第${day.day || (index + 1)}天`,
+        date: day.date || '',
+        description: day.description || '',
+        city: day.city || '',
+        spots: Array.isArray(day.spots) ? day.spots.map(spot => {
+          if (!spot) return null; // 跳过无效景点
+          
+          return {
+            name: spot.name || '未命名景点',
+            time: spot.time || '',
+            description: spot.description || '',
+            location: spot.location || '',
+            transport: spot.transport || '自驾',
+            cost: spot.cost || '',
+            poiId: spot.poiId || '',
+            links: Array.isArray(spot.links) ? spot.links.filter(link => link && link.title && link.url).map(link => ({
+              title: link.title,
+              url: link.url,
+              type: link.type || 'article'
+            })) : []
+          };
+        }).filter(spot => spot !== null) : [] // 过滤掉无效景点
+      };
+    }).filter(day => day !== null) // 过滤掉无效日程
+  };
+  
   // 开始事务
   console.log('开始数据库事务');
   try {
@@ -121,32 +170,15 @@ async function updateTripDetails(db, tripId, tripData) {
   try {
     // 1. 更新行程基本信息
     console.log('更新行程基本信息');
-    if (!tripData.tripInfo) {
-      throw new Error('tripInfo字段缺失或为空');
-    }
-    
-    // 检查必要字段
-    const requiredFields = ['title', 'date', 'days', 'totalDistance', 'description'];
-    for (const field of requiredFields) {
-      if (tripData.tripInfo[field] === undefined) {
-        console.warn(`警告: tripInfo.${field}字段缺失，设置为默认值`);
-        // 设置默认值而不是抛出错误
-        if (field === 'title') tripData.tripInfo.title = '未命名行程';
-        if (field === 'date') tripData.tripInfo.date = new Date().toISOString().split('T')[0];
-        if (field === 'days') tripData.tripInfo.days = 1;
-        if (field === 'totalDistance') tripData.tripInfo.totalDistance = '0公里';
-        if (field === 'description') tripData.tripInfo.description = '';
-      }
-    }
     
     const tripUpdateResult = await db.prepare(
       'UPDATE trips SET title = ?, start_date = ?, days = ?, total_distance = ?, description = ? WHERE id = ?'
     ).bind(
-      tripData.tripInfo.title,
-      tripData.tripInfo.date,
-      tripData.tripInfo.days,
-      tripData.tripInfo.totalDistance,
-      tripData.tripInfo.description,
+      safeTrip.tripInfo.title,
+      safeTrip.tripInfo.date,
+      safeTrip.tripInfo.days,
+      safeTrip.tripInfo.totalDistance,
+      safeTrip.tripInfo.description,
       tripId
     ).run();
     
@@ -156,20 +188,9 @@ async function updateTripDetails(db, tripId, tripData) {
       throw new Error('更新行程基本信息失败');
     }
     
-    // 检查是否有daily_schedules字段
-    if (!tripData.dailySchedule || !Array.isArray(tripData.dailySchedule)) {
-      console.error('dailySchedule字段缺失或不是数组');
-      throw new Error('dailySchedule字段缺失或格式不正确');
-    }
-    
     // 2. 处理每日行程
-    console.log(`处理${tripData.dailySchedule.length}天的行程`);
-    for (const day of tripData.dailySchedule) {
-      if (!day.day) {
-        console.warn('日程缺少day字段，跳过');
-        continue;
-      }
-      
+    console.log(`处理${safeTrip.dailySchedule.length}天的行程`);
+    for (const day of safeTrip.dailySchedule) {
       console.log(`处理第${day.day}天行程`);
       
       // 查找此天行程是否存在
@@ -187,10 +208,10 @@ async function updateTripDetails(db, tripId, tripData) {
         const updateResult = await db.prepare(
           'UPDATE daily_schedules SET title = ?, date = ?, description = ?, city = ? WHERE id = ?'
         ).bind(
-          day.title || `第${day.day}天`,
-          day.date || '',
-          day.description || '',
-          day.city || '',
+          day.title,
+          day.date,
+          day.description,
+          day.city,
           scheduleId
         ).run();
         
@@ -208,11 +229,15 @@ async function updateTripDetails(db, tripId, tripData) {
         console.log(`删除${existingSpots.results ? existingSpots.results.length : 0}个已有景点`);
         
         // 删除景点链接
-        for (const spot of (existingSpots.results || [])) {
-          console.log(`删除景点ID ${spot.id} 的链接`);
-          await db.prepare(
-            'DELETE FROM spot_links WHERE spot_id = ?'
-          ).bind(spot.id).run();
+        if (existingSpots.results && existingSpots.results.length > 0) {
+          for (const spot of existingSpots.results) {
+            console.log(`删除景点ID ${spot.id} 的链接`);
+            const deleteLinksResult = await db.prepare(
+              'DELETE FROM spot_links WHERE spot_id = ?'
+            ).bind(spot.id).run();
+            
+            console.log('链接删除结果:', deleteLinksResult);
+          }
         }
         
         // 删除景点
@@ -230,10 +255,10 @@ async function updateTripDetails(db, tripId, tripData) {
         ).bind(
           tripId,
           day.day,
-          day.title || `第${day.day}天`,
-          day.date || '',
-          day.description || '',
-          day.city || ''
+          day.title,
+          day.date,
+          day.description,
+          day.city
         ).run();
         
         console.log('新日程插入结果:', result);
@@ -246,27 +271,22 @@ async function updateTripDetails(db, tripId, tripData) {
       }
       
       // 3. 处理景点
-      if (day.spots && Array.isArray(day.spots)) {
+      if (day.spots && Array.isArray(day.spots) && day.spots.length > 0) {
         console.log(`处理${day.spots.length}个景点`);
         for (const spot of day.spots) {
-          if (!spot.name) {
-            console.warn('景点缺少name字段，设置为默认值');
-            spot.name = '未命名景点';
-          }
-          
           console.log(`添加景点: ${spot.name}`);
           // 插入景点
           const spotResult = await db.prepare(
             'INSERT INTO spots (schedule_id, time, name, description, location, transport, cost, poi_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
           ).bind(
             scheduleId,
-            spot.time || '',
+            spot.time,
             spot.name,
-            spot.description || '',
-            spot.location || '',
-            spot.transport || '自驾',
-            spot.cost || '',
-            spot.poiId || ''
+            spot.description,
+            spot.location,
+            spot.transport,
+            spot.cost,
+            spot.poiId
           ).run();
           
           console.log('景点插入结果:', spotResult);
@@ -282,14 +302,9 @@ async function updateTripDetails(db, tripId, tripData) {
           console.log(`新景点ID: ${spotId}`);
           
           // 4. 处理链接
-          if (spot.links && Array.isArray(spot.links)) {
+          if (spot.links && Array.isArray(spot.links) && spot.links.length > 0) {
             console.log(`处理${spot.links.length}个链接`);
             for (const link of spot.links) {
-              if (!link.title || !link.url) {
-                console.warn('链接缺少title或url字段，跳过');
-                continue;
-              }
-              
               console.log(`添加链接: ${link.title}`);
               const linkResult = await db.prepare(
                 'INSERT INTO spot_links (spot_id, title, url, type) VALUES (?, ?, ?, ?)'
@@ -297,7 +312,7 @@ async function updateTripDetails(db, tripId, tripData) {
                 spotId,
                 link.title,
                 link.url,
-                link.type || 'article'
+                link.type
               ).run();
               
               console.log('链接插入结果:', linkResult);
@@ -308,6 +323,8 @@ async function updateTripDetails(db, tripId, tripData) {
             }
           }
         }
+      } else {
+        console.log('该日程没有景点数据');
       }
     }
     
@@ -392,16 +409,43 @@ async function handleRequest(request, env) {
         
         // 读取请求正文
         let tripData;
+        let requestText = '';
+        
         try {
-          tripData = await request.json();
+          // 首先尝试获取原始请求文本，用于调试
+          const clonedRequest = request.clone();
+          requestText = await clonedRequest.text();
+          console.log('原始请求文本(部分):', requestText.substring(0, 500) + '...');
+          
+          // 解析JSON
+          try {
+            tripData = JSON.parse(requestText);
+          } catch(parseError) {
+            console.error('JSON解析错误:', parseError);
+            return new Response(JSON.stringify({ 
+              error: '无效的JSON数据格式', 
+              message: parseError.message,
+              partialText: requestText.substring(0, 200) + '...'
+            }), {
+              status: 400,
+              headers: {
+                'Content-Type': 'application/json',
+                ...corsHeaders
+              }
+            });
+          }
+          
           console.log('接收到的数据结构：', JSON.stringify({
             hasInfo: !!tripData.tripInfo,
             hasDailySchedule: !!tripData.dailySchedule,
             daysCount: tripData.dailySchedule ? tripData.dailySchedule.length : 0
           }));
         } catch (error) {
-          console.error('解析请求JSON失败:', error);
-          return new Response(JSON.stringify({ error: '无效的JSON数据格式' }), {
+          console.error('请求读取或解析失败:', error);
+          return new Response(JSON.stringify({ 
+            error: '读取请求数据失败', 
+            message: error.message 
+          }), {
             status: 400,
             headers: {
               'Content-Type': 'application/json',
@@ -413,7 +457,13 @@ async function handleRequest(request, env) {
         // 验证必要字段
         if (!tripData.tripInfo || !tripData.dailySchedule) {
           console.log('数据格式不正确，缺少必要字段');
-          return new Response(JSON.stringify({ error: '数据格式不正确，缺少tripInfo或dailySchedule' }), {
+          return new Response(JSON.stringify({ 
+            error: '数据格式不正确，缺少tripInfo或dailySchedule',
+            receivedData: {
+              hasInfo: !!tripData.tripInfo,
+              hasDailySchedule: !!tripData.dailySchedule
+            }
+          }), {
             status: 400,
             headers: {
               'Content-Type': 'application/json',
@@ -436,7 +486,18 @@ async function handleRequest(request, env) {
           });
         } catch (updateError) {
           console.error('更新数据库失败:', updateError);
-          return new Response(JSON.stringify({ error: `更新数据库失败: ${updateError.message}`, stack: updateError.stack }), {
+          let errorResponse = {
+            error: `更新数据库失败: ${updateError.message}`,
+            message: updateError.message
+          };
+          
+          // 安全地添加堆栈跟踪，避免过大的响应
+          if (updateError.stack) {
+            const stackLines = updateError.stack.split('\n');
+            errorResponse.stack = stackLines.slice(0, 5).join('\n');
+          }
+          
+          return new Response(JSON.stringify(errorResponse), {
             status: 500,
             headers: {
               'Content-Type': 'application/json',
