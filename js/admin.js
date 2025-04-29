@@ -23,7 +23,6 @@ async function init() {
         // 渲染行程视图
         renderTripInfo();
         renderScheduleView();
-        updateJsonEditor();
         
         // 绑定事件
         bindEvents();
@@ -117,11 +116,6 @@ function bindEvents() {
     // 保存行程信息
     document.getElementById('save-trip-info-btn').addEventListener('click', saveTripInfo);
     
-    // JSON编辑器功能
-    document.getElementById('validate-json-btn').addEventListener('click', validateJson);
-    document.getElementById('format-json-btn').addEventListener('click', formatJson);
-    document.getElementById('save-json-btn').addEventListener('click', saveJson);
-    
     // 添加天数按钮
     document.getElementById('add-day-btn').addEventListener('click', addDay);
     
@@ -130,16 +124,12 @@ function bindEvents() {
     document.getElementById('close-spot-modal').addEventListener('click', closeSpotModal);
     document.getElementById('save-spot-btn').addEventListener('click', saveSpot);
     
-    // 备份和恢复功能
-    document.getElementById('backup-data-btn').addEventListener('click', backupData);
-    document.getElementById('restore-data-btn').addEventListener('click', restoreData);
-    
     // POI搜索功能
     document.getElementById('search-poi-btn').addEventListener('click', searchPOI);
     document.getElementById('copy-poi-btn').addEventListener('click', copyPOIInfo);
     document.getElementById('copy-poi-json-btn').addEventListener('click', copyPOIJson);
     
-    // 添加生成数据按钮事件
+    // 添加保存数据按钮事件
     document.getElementById('generate-data-btn').addEventListener('click', generateData);
 }
 
@@ -167,9 +157,6 @@ function saveTripInfo() {
     tripData.tripInfo.days = parseInt(document.getElementById('trip-days').value) || 1;
     tripData.tripInfo.totalDistance = document.getElementById('trip-distance').value;
     tripData.tripInfo.description = document.getElementById('trip-description').value;
-    
-    // 更新JSON编辑器
-    updateJsonEditor();
     
     // 标记数据已修改
     dataModified = true;
@@ -318,7 +305,6 @@ function addDay() {
     
     // 更新视图
     renderScheduleView();
-    updateJsonEditor();
     
     // 标记数据已修改
     dataModified = true;
@@ -347,7 +333,6 @@ function editDay(dayIndex) {
     
     // 更新视图
     renderScheduleView();
-    updateJsonEditor();
     
     // 标记数据已修改
     dataModified = true;
@@ -381,7 +366,6 @@ function deleteDay(dayIndex) {
     
     // 更新视图
     renderScheduleView();
-    updateJsonEditor();
     
     // 标记数据已修改
     dataModified = true;
@@ -642,7 +626,6 @@ function saveSpot() {
     
     // 更新视图
     renderScheduleView();
-    updateJsonEditor();
     
     // 标记数据已修改
     dataModified = true;
@@ -680,156 +663,11 @@ function deleteSpot(dayIndex, spotIndex) {
     
     // 更新视图
     renderScheduleView();
-    updateJsonEditor();
     
     // 标记数据已修改
     dataModified = true;
     
     showMessage(`已删除景点"${spot.name}"`, 'success');
-}
-
-/**
- * 更新JSON编辑器
- */
-function updateJsonEditor() {
-    const jsonEditor = document.getElementById('json-editor');
-    
-    // 确保所有坐标格式正确
-    if (tripData) {
-        // 遍历所有天和景点
-        if (tripData.dailySchedule) {
-            tripData.dailySchedule.forEach(day => {
-                if (day.spots) {
-                    day.spots.forEach(spot => {
-                        // 将coordinates对象格式转换为location字符串格式
-                        if (spot.coordinates && !spot.location) {
-                            const lng = spot.coordinates.lng;
-                            const lat = spot.coordinates.lat;
-                            spot.location = `${lng},${lat}`;
-                            // 删除旧的coordinates对象
-                            delete spot.coordinates;
-                        }
-                        
-                        // 确保tips作为链接存储
-                        if (spot.tips && !spot.tips.trim()) {
-                            delete spot.tips;
-                        } else if (spot.tips && !spot.links) {
-                            spot.links = [];
-                            spot.links.push({
-                                title: spot.tips,
-                                url: "",
-                                type: "tip"
-                            });
-                            delete spot.tips;
-                        } else if (spot.tips) {
-                            // 如果已有links数组，添加tips作为链接
-                            const hasTipLink = spot.links.some(link => 
-                                link.title === spot.tips && link.type === 'tip'
-                            );
-                            
-                            if (!hasTipLink) {
-                                spot.links.push({
-                                    title: spot.tips,
-                                    url: "",
-                                    type: "tip"
-                                });
-                            }
-                            delete spot.tips;
-                        }
-                        
-                        // 删除category属性
-                        if (spot.category) {
-                            delete spot.category;
-                        }
-                        
-                        // 修正交通方式
-                        if (spot.transport) {
-                            // 规范化交通方式为三种：自驾、骑行、步行
-                            if (spot.transport.includes('车') || 
-                                spot.transport.includes('驾') || 
-                                spot.transport === '出租车' || 
-                                spot.transport === '打车') {
-                                spot.transport = '自驾';
-                            } else if (spot.transport.includes('电动') || 
-                                       spot.transport.includes('单车') || 
-                                       spot.transport.includes('骑')) {
-                                spot.transport = '骑行';
-                            } else if (spot.transport.includes('走') || 
-                                       spot.transport.includes('步') || 
-                                       spot.transport === '徒步') {
-                                spot.transport = '步行';
-                            }
-                            // 如果不符合以上任何条件，默认设为自驾
-                            else if (spot.transport !== '自驾' && 
-                                     spot.transport !== '骑行' && 
-                                     spot.transport !== '步行') {
-                                spot.transport = '自驾';
-                            }
-                        }
-                    });
-                }
-            });
-        }
-    }
-    
-    jsonEditor.value = JSON.stringify(tripData, null, 2);
-}
-
-/**
- * 验证JSON格式
- */
-function validateJson() {
-    const jsonEditor = document.getElementById('json-editor');
-    const jsonString = jsonEditor.value;
-    
-    try {
-        JSON.parse(jsonString);
-        showMessage('JSON格式正确', 'success');
-        return true;
-    } catch (error) {
-        showMessage(`JSON格式错误: ${error.message}`, 'error');
-        return false;
-    }
-}
-
-/**
- * 格式化JSON
- */
-function formatJson() {
-    const jsonEditor = document.getElementById('json-editor');
-    const jsonString = jsonEditor.value;
-    
-    try {
-        const parsed = JSON.parse(jsonString);
-        jsonEditor.value = JSON.stringify(parsed, null, 2);
-        showMessage('JSON已格式化', 'success');
-    } catch (error) {
-        showMessage(`JSON格式错误: ${error.message}`, 'error');
-    }
-}
-
-/**
- * 保存JSON
- */
-function saveJson() {
-    const jsonEditor = document.getElementById('json-editor');
-    const jsonString = jsonEditor.value;
-    
-    try {
-        const parsed = JSON.parse(jsonString);
-        tripData = parsed;
-        
-        // 更新视图
-        renderTripInfo();
-        renderScheduleView();
-        
-        // 标记数据已修改
-        dataModified = true;
-        
-        showMessage('JSON已保存', 'success');
-    } catch (error) {
-        showMessage(`JSON格式错误: ${error.message}`, 'error');
-    }
 }
 
 /**
@@ -1119,78 +957,11 @@ function fallbackCopyToClipboard(text) {
 }
 
 /**
- * 备份数据
- */
-function backupData() {
-    const dataStr = JSON.stringify(tripData, null, 2);
-    const blob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `travel_backup_${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showMessage('数据备份成功', 'success');
-}
-
-/**
- * 恢复数据
- */
-async function restoreData() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
-    
-    input.onchange = async function(e) {
-        try {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                try {
-                    const data = JSON.parse(e.target.result);
-                    
-                    // 验证数据结构
-                    if (!data.tripInfo || !data.dailySchedule) {
-                        throw new Error('无效的数据格式');
-                    }
-                    
-                    tripData = data;
-                    dataModified = true;
-                    
-                    // 保存到服务器
-                    await saveData();
-                    
-                    // 更新界面
-                    renderTripInfo();
-                    renderScheduleView();
-                    updateJsonEditor();
-                    
-                    showMessage('数据恢复成功', 'success');
-                } catch (error) {
-                    console.error('恢复数据失败:', error);
-                    showMessage('恢复失败: ' + error.message, 'error');
-                }
-            };
-            reader.readAsText(file);
-        } catch (error) {
-            console.error('读取文件失败:', error);
-            showMessage('读取文件失败', 'error');
-        }
-    };
-    
-    input.click();
-}
-
-/**
- * 生成数据（原saveData函数重命名为generateData，saveData函数变为内部函数）
+ * 保存数据
  */
 function generateData() {
     if (!dataModified) {
-        if (!confirm('数据没有修改，确定要重新生成下载链接吗？')) {
+        if (!confirm('数据没有修改，确定要重新保存吗？')) {
             return;
         }
     }
@@ -1203,7 +974,7 @@ function generateData() {
 }
 
 /**
- * 内部保存数据函数，不再自动生成下载
+ * 内部保存数据函数
  */
 async function saveData() {
     try {

@@ -169,31 +169,6 @@
             background-color: #e9ecef;
         }
         
-        /* JSON编辑器样式 */
-        #json-editor-container {
-            display: flex;
-            flex-direction: column;
-            height: 100%;
-        }
-        
-        #json-editor {
-            width: 100%;
-            height: 400px;
-            font-family: monospace;
-            font-size: 14px;
-            line-height: 1.5;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            resize: vertical;
-        }
-        
-        .editor-buttons {
-            margin-top: 10px;
-            display: flex;
-            gap: 10px;
-        }
-        
         /* 日程视图样式 */
         .schedule-day {
             margin-bottom: 30px;
@@ -359,9 +334,7 @@
             <div class="sidebar">
                 <div class="nav-item active" data-tab="schedule-view">行程管理</div>
                 <div class="nav-item" data-tab="trip-info">行程信息</div>
-                <div class="nav-item" data-tab="json-editor">JSON编辑器</div>
                 <div class="nav-item" data-tab="poi-search">高德POI查询</div>
-                <div class="nav-item" data-tab="backup-restore">备份与恢复</div>
             </div>
             
             <div class="content">
@@ -399,18 +372,6 @@
                     </div>
                     <div class="button-group">
                         <button id="save-trip-info-btn">保存行程信息</button>
-                    </div>
-                </div>
-                
-                <!-- JSON编辑器视图 -->
-                <div id="json-editor-container" class="tab-content" style="display: none;">
-                    <h2>JSON编辑器</h2>
-                    <p>在这里你可以直接编辑整个JSON数据文件。修改后请点击"验证JSON"按钮检查格式是否正确，然后点击"保存JSON"按钮保存。</p>
-                    <textarea id="json-editor"></textarea>
-                    <div class="editor-buttons">
-                        <button id="validate-json-btn">验证JSON</button>
-                        <button id="format-json-btn">格式化JSON</button>
-                        <button id="save-json-btn">保存JSON</button>
                     </div>
                 </div>
                 
@@ -453,26 +414,6 @@
                             <button id="copy-poi-btn">复制位置信息</button>
                             <button id="copy-poi-json-btn">复制JSON格式</button>
                         </div>
-                    </div>
-                </div>
-                
-                <!-- 备份与恢复视图 -->
-                <div id="backup-restore" class="tab-content" style="display: none;">
-                    <h2>备份与恢复</h2>
-                    <p>你可以将当前的行程数据导出为JSON文件进行备份，或者从JSON文件中恢复行程数据。</p>
-                    
-                    <div class="form-group">
-                        <label>备份当前数据</label>
-                        <button id="backup-data-btn">导出JSON文件</button>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="restore-file">从文件恢复</label>
-                        <input type="file" id="restore-file" accept=".json">
-                    </div>
-                    
-                    <div class="button-group">
-                        <button id="restore-data-btn">从文件恢复数据</button>
                     </div>
                 </div>
             </div>
@@ -540,7 +481,7 @@
     </div>
     
     <!-- 生成数据按钮 -->
-    <button id="generate-data-btn" class="generate-data-btn">生成数据</button>
+    <button id="generate-data-btn" class="generate-data-btn">保存数据</button>
 
     <!-- 添加高德地图API -->
     <script type="text/javascript">
@@ -552,7 +493,7 @@
     
     <!-- 添加管理后台JS -->
      <!-- 先加载 config.js -->
-<script src="js/config.js"></script>
+    <script src="js/config.js"></script>
     <script src="js/admin.js"></script>
 </body>
 </html> 
