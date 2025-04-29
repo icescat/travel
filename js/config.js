@@ -10,7 +10,7 @@ const CONFIG = {
     
     // API配置
     api: {
-        baseUrl: 'https://travel-api.icescat.workers.dev/api', // API基础URL
+        baseUrl: 'https://travel.159731.xyz/api', // API基础URL
         endpoints: {
             trips: '/trips',
             tripDetails: '/trips/{id}'
