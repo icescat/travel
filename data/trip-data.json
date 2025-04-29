@@ -1,0 +1,326 @@
+{
+  "tripInfo": {
+    "title": "2025桂林五一行程",
+    "date": "2025-05-01",
+    "days": 4,
+    "totalDistance": "1212公里",
+    "description": "长沙-桂林-阳朔往返四日游"
+  },
+  "dailySchedule": [
+    {
+      "day": 1,
+      "title": "长沙~桂林",
+      "date": "2025-05-01",
+      "city": "guilin,CN",
+      "description": "从长沙出发，抵达桂林市区，游览桂林市区景点",
+      "spots": [
+        {
+          "id": "spot-1-1",
+          "time": "09:00",
+          "name": "长沙西岸润泽府",
+          "description": "从家里出发，开始自驾前往桂林的旅程",
+          "location": "112.944836,28.222374",
+          "transport": "自驾",
+          "links": [
+            {
+              "title": "油加满，食物和水备好",
+              "url": "",
+              "type": "tip"
+            }
+          ],
+          "poiId": "B0FFG7KRS5"
+        },
+        {
+          "id": "spot-1-2",
+          "time": "15:00",
+          "name": "全景智能酒店",
+          "description": "抵达桂林，办理入住",
+          "location": "110.29404,25.278933",
+          "transport": "自驾",
+          "links": [
+            {
+              "title": "酒店位于景区附近，有停车场，方便步行游览市区景点",
+              "url": "",
+              "type": "tip"
+            }
+          ],
+          "poiId": "B0K69LPJDG",
+          "cost": "520元/人"
+        },
+        {
+          "id": "spot-1-3",
+          "time": "16:00",
+          "name": "靖江王城",
+          "description": "参观靖江王府，了解明代历史文化",
+          "location": "110.298494,25.278164",
+          "transport": "步行",
+          "cost": "100元/人",
+          "links": [
+            {
+              "title": "时间充足时游览，建议游览1小时",
+              "url": "",
+              "type": "tip"
+            }
+          ],
+          "poiId": "B0FFGJGMK4"
+        },
+        {
+          "id": "spot-1-4",
+          "time": "17:30",
+          "name": "象山公园",
+          "description": "游览象山公园，观赏桂林标志性景点",
+          "location": "110.29816,25.271791",
+          "transport": "步行",
+          "cost": "免费",
+          "links": [
+            {
+              "title": "免费景点，游玩时间约1小时左右",
+              "url": "",
+              "type": "tip"
+            }
+          ],
+          "poiId": "B0FFLB026K"
+        },
+        {
+          "id": "spot-1-5",
+          "time": "19:30",
+          "name": "双塔公园",
+          "description": "夜游双塔公园，欣赏日月双塔夜景，品尝当地小吃",
+          "location": "110.293731,25.270744",
+          "transport": "步行",
+          "links": [
+            {
+              "title": "夜景很美，是拍照的好地方，周边有许多小吃摊位",
+              "url": "",
+              "type": "tip"
+            }
+          ],
+          "poiId": "B0305097YU"
+        }
+      ]
+    },
+    {
+      "day": 2,
+      "title": "桂林~阳朔",
+      "date": "2025-05-02",
+      "city": "guilin,CN",
+      "description": "乘船游漓江，抵达阳朔，游览西街，观看千古情表演",
+      "spots": [
+        {
+          "id": "spot-2-1",
+          "time": "08:00",
+          "name": "全景智能酒店",
+          "description": "从酒店出发前往磨盘山码头",
+          "location": "110.29404,25.278933",
+          "transport": "自驾",
+          "links": [
+            {
+              "title": "准备出发坐船，估计会很早",
+              "url": "",
+              "type": "tip"
+            }
+          ],
+          "poiId": "B0K69LPJDG"
+        },
+        {
+          "id": "spot-2-2",
+          "time": "09:30",
+          "name": "磨盘山客运码头",
+          "description": "在磨盘山客运码头乘坐三星游轮游览漓江",
+          "location": "110.430987,25.147562",
+          "transport": "自驾",
+          "cost": "215元/人",
+          "links": [
+            {
+              "title": "漓江游船攻略",
+              "url": "https://www.bilibili.com/video/BV1ch4y1G7vn",
+              "type": "video"
+            }
+          ],
+          "poiId": "B0305021A5"
+        },
+        {
+          "id": "spot-2-3",
+          "time": "14:00",
+          "name": "龙头山码头",
+          "description": "抵达阳朔龙头山码头，结束全程约4.5小时的漓江游船之旅",
+          "location": "110.498687,24.780424",
+          "transport": "自驾",
+          "links": [
+            {
+              "title": "下船后可以去西街吃午饭，体验当地美食",
+              "url": "",
+              "type": "tip"
+            }
+          ],
+          "poiId": "B0JK25QI8B"
+        },
+        {
+          "id": "spot-2-4",
+          "time": "15:00",
+          "name": "阳朔西街",
+          "description": "游览阳朔西街，品尝当地美食，选购特色纪念品",
+          "location": "110.493683,24.773309",
+          "transport": "自驾",
+          "links": [],
+          "poiId": "B0IAHC7KWH"
+        },
+        {
+          "id": "spot-2-5",
+          "time": "17:00",
+          "name": "阳朔1Q84樹民宿",
+          "description": "抵达民宿，办理入住，民宿靠近千古情景区",
+          "location": "110.466032,24.766802",
+          "transport": "自驾",
+          "links": [],
+          "poiId": "B0FFL74P4H"
+        },
+        {
+          "id": "spot-2-6",
+          "time": "19:30",
+          "name": "桂林千古情景区",
+          "description": "千古情室内，刘三姐室外，推荐看千古情；\n建议提前半小时入场，选择好的座位",
+          "location": "110.470058,24.769893",
+          "transport": "自驾",
+          "cost": "约280元/人",
+          "links": [],
+          "poiId": "B0FFM52BT9"
+        }
+      ]
+    },
+    {
+      "day": 3,
+      "title": "阳朔",
+      "date": "2025-05-03",
+      "city": "guilin,CN",
+      "description": "体验遇龙河漂流，骑行游览月亮山和十里画廊",
+      "spots": [
+        {
+          "id": "spot-3-1",
+          "time": "09:00",
+          "name": "阳朔1Q84樹民宿",
+          "description": "电动车租金约60-80元/天，带好身份证作为押金",
+          "location": "110.466032,24.766802",
+          "transport": "步行",
+          "links": [],
+          "poiId": "B0FFL74P4H"
+        },
+        {
+          "id": "spot-3-2",
+          "time": "10:00",
+          "name": "万景码头",
+          "description": "体验遇龙河竹筏漂流，欣赏两岸喀斯特山水风光",
+          "location": "110.491964,24.733705",
+          "transport": "步行",
+          "cost": "200元/人",
+          "links": [
+            {
+              "title": "遇龙河漂流攻略",
+              "url": "https://www.bilibili.com/video/BV1L3bce4EpD",
+              "type": "video"
+            }
+          ],
+          "poiId": "B0H0CUV6PF"
+        },
+        {
+          "id": "spot-3-3",
+          "time": "13:00",
+          "name": "月亮山",
+          "description": "游览月亮山，欣赏著名的山体穿孔景观",
+          "location": "110.476942,24.721673",
+          "transport": "步行",
+          "cost": "约60元/人",
+          "links": [
+            {
+              "title": "月亮山是阳朔的标志性景点，适合拍照打卡",
+              "url": "",
+              "type": "tip"
+            }
+          ],
+          "poiId": "B0FFFAH948"
+        },
+        {
+          "id": "spot-3-4",
+          "time": "15:00",
+          "name": "遇龙河景区",
+          "description": "油菜花,桂林米粉,农家菜,螺蛳粉,啤酒鱼",
+          "location": "110.433115,24.777530",
+          "transport": "步行",
+          "links": [
+            {
+              "title": "游览图",
+              "url": "https://www.mafengwo.cn/photo/10095/scenery_24443607/1887764022.html",
+              "type": "article"
+            }
+          ],
+          "poiId": "B03050V0PB"
+        },
+        {
+          "id": "spot-3-5",
+          "time": "16:30",
+          "name": "阳朔1Q84樹民宿",
+          "description": "自由活动",
+          "location": "110.466032,24.766802",
+          "transport": "步行",
+          "links": [],
+          "poiId": "B0FFL74P4H"
+        }
+      ]
+    },
+    {
+      "day": 4,
+      "title": "阳朔~长沙",
+      "date": "2025-05-04",
+      "city": "changsha,CN",
+      "description": "游览相公山，返回长沙",
+      "spots": [
+        {
+          "id": "spot-4-1",
+          "time": "08:00",
+          "name": "阳朔1Q84樹民宿",
+          "description": "从民宿出发，开始返程",
+          "location": "110.466032,24.766802",
+          "transport": "自驾",
+          "links": [
+            {
+              "title": "退房前检查是否有遗漏物品",
+              "url": "",
+              "type": "tip"
+            }
+          ],
+          "poiId": "B0FFL74P4H"
+        },
+        {
+          "id": "spot-4-2",
+          "time": "09:30",
+          "name": "相公山",
+          "description": "登山游览相公山，欣赏山顶风景",
+          "location": "110.482457,24.922431",
+          "transport": "自驾",
+          "links": [],
+          "poiId": "B0G06PLLID"
+        },
+        {
+          "id": "spot-4-3",
+          "time": "12:30",
+          "name": "桂林市区午餐",
+          "description": "在桂林市区吃午饭",
+          "location": "110.29481,25.274855",
+          "transport": "自驾",
+          "links": [],
+          "poiId": "B0FFF9RW8T"
+        },
+        {
+          "id": "spot-4-4",
+          "time": "18:30",
+          "name": "长沙西岸润泽府",
+          "description": "抵达长沙，结束愉快的旅程",
+          "location": "112.944836,28.222374",
+          "transport": "自驾",
+          "links": [],
+          "poiId": "B0FFG7KRS5"
+        }
+      ]
+    }
+  ]
+}

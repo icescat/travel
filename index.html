@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>2025桂林五一行程</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- 加载状态样式和移动端优化样式 -->
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        
+        body {
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background-color: #f5f5f5;
+        }
+        
+        .page-loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+        
+        .page-loading.fade-out {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(30, 112, 235, 0.1);
+            border-radius: 50%;
+            border-top-color: #1e70eb;
+            animation: spin 1s linear infinite;
+            margin-bottom: 16px;
+        }
+        
+        .loading-text {
+            color: #1e70eb;
+            font-weight: 600;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 移动端新UI样式 */
+        .header {
+            background: linear-gradient(to right, #1e70eb, #3b82f6);
+            color: white;
+            padding: 0.75rem 1rem;
+            position: relative;
+            z-index: 1000;
+        }
+        
+        .header h1 {
+            font-size: 1.25rem;
+            font-weight: bold;
+            text-align: center;
+        }
+        
+        .day-nav {
+            display: flex;
+            overflow-x: auto;
+            background-color: white;
+            position: relative;
+            z-index: 1000;
+            scrollbar-width: none; /* Firefox */
+            padding: 8px 0; /* 添加上下间距，使布局更美观 */
+            margin-bottom: 2px; /* 添加底部间距 */
+            box-shadow: none; /* 确保没有阴影 */
+            border: none; /* 确保没有边框 */
+        }
+        
+        .day-nav::-webkit-scrollbar {
+            display: none; /* Chrome, Safari, Edge */
+        }
+        
+        .day-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            min-width: 80px;
+            position: relative;
+            cursor: pointer;
+            border: none; /* 确保没有边框 */
+            outline: none; /* 确保没有轮廓 */
+            background: transparent; /* 确保背景透明 */
+            box-shadow: none; /* 确保没有阴影 */
+            text-decoration: none; /* 确保没有文本装饰 */
+        }
+        
+        /* 选中状态样式，使用文字颜色而非底部横线 */
+        .day-item.active {
+            color: #1e70eb;
+            font-weight: bold; /* 加粗选中状态 */
+        }
+        
+        .day-item.active .day-number,
+        .day-item.active .day-title {
+            color: #1e70eb; /* 确保子元素也是蓝色 */
+        }
+        
+        .day-number {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+        
+        .day-title {
+            font-size: 0.875rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        
+        .view-toggle {
+            display: flex;
+            margin: 0.75rem;
+            background-color: #e5e7eb;
+            border-radius: 9999px;
+            padding: 0.25rem;
+            position: relative;
+            z-index: 900;
+        }
+        
+        .toggle-btn {
+            flex: 1;
+            text-align: center;
+            padding: 0.5rem 0;
+            border-radius: 9999px;
+            font-weight: 500;
+            font-size: 0.875rem;
+            transition: background-color 0.2s;
+            cursor: pointer;
+        }
+        
+        .toggle-btn.active {
+            background-color: #1e70eb;
+            color: white;
+        }
+        
+        .main-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .itinerary-view, .map-view {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transition: transform 0.3s ease;
+        }
+        
+        .itinerary-view {
+            background-color: #f5f5f5;
+            overflow-y: auto;
+            transform: translateX(0);
+        }
+        
+        .map-view {
+            background-color: #f5f5f5;
+            transform: translateX(100%);
+        }
+        
+        /* 修复地图满屏问题 */
+        .map-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        
+        .day-header {
+            padding: 0.75rem 1rem;
+            background-color: white;
+            border-bottom: 1px solid #e5e7eb;
+            margin-bottom: 0.75rem;
+        }
+        
+        .day-header-title {
+            font-size: 1.25rem;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .weather {
+            display: flex;
+            align-items: center;
+            background-color: #f3f4f6;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.875rem;
+        }
+        
+        .weather-icon {
+            margin-right: 0.25rem;
+        }
+        
+        .day-header-desc {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-top: 0.5rem;
+        }
+        
+        .itinerary-card {
+            background-color: white;
+            border-radius: 0.5rem;
+            margin: 0 0.75rem 0.75rem;
+            overflow: hidden;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .card-content {
+            padding: 0.75rem 1rem;
+        }
+        
+        .spot-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+        
+        .spot-desc {
+            font-size: 0.875rem;
+            color: #6b7280;
+            margin-bottom: 0.5rem;
+        }
+        
+        .spot-meta {
+            display: flex;
+            align-items: center;
+            margin-top: 0.5rem;
+            font-size: 0.75rem;
+            color: #6b7280;
+        }
+        
+        .spot-meta svg {
+            margin-right: 0.25rem;
+            flex-shrink: 0;
+        }
+        
+        .spot-time {
+            position: absolute;
+            top: 0.75rem;
+            right: 1rem;
+            background-color: #dbeafe;
+            color: #1e40af;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .spot-number {
+            width: 2rem;
+            height: 2rem;
+            border-radius: 9999px;
+            background-color: #1e70eb;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            position: absolute;
+            left: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            display: none; /* 默认不显示，在地图上显示 */
+        }
+        
+        /* 在地图视图上显示序号标记 */
+        .map-view .spot-number {
+            display: flex;
+        }
+        
+        .spot-content {
+            position: relative;
+            padding-left: 1rem; /* 减小左侧padding */
+        }
+    </style>
+    <!-- 引入高德地图API -->
+    <script type="text/javascript">
+        window._AMapSecurityConfig = {
+            securityJsCode: 'da122353acc05b7515f2c34dcdd5a753',
+        }
+    </script>
+    <script type="text/javascript" src="https://webapi.amap.com/maps?v=2.0&key=09bcdeabf70a1f466cbf766750c244bf&plugin=AMap.ToolBar,AMap.Scale,AMap.MapType,AMap.Geolocation,AMap.PlaceSearch,AMap.Polyline,AMap.Marker,AMap.InfoWindow,AMap.Driving,AMap.Walking,AMap.Riding"></script>
+    <!-- 引入UI组件库 -->
+    <script type="text/javascript" src="https://webapi.amap.com/ui/1.1/main.js?v=1.1.1"></script>
+</head>
+<body>
+    <!-- 页面加载状态 -->
+    <div class="page-loading" id="pageLoading">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">加载中，请稍候...</div>
+    </div>
+
+    <!-- 移动端优化UI -->
+    <header class="header">
+        <h1>桂林五一旅游攻略</h1>
+    </header>
+    
+    <!-- 日期导航 -->
+    <div class="day-nav" id="dayNav">
+        <div class="day-item active" data-day="1">
+            <div class="day-number">第1天</div>
+            <div class="day-title">长沙~桂林</div>
+        </div>
+        <div class="day-item" data-day="2">
+            <div class="day-number">第2天</div>
+            <div class="day-title">桂林~阳朔</div>
+        </div>
+        <div class="day-item" data-day="3">
+            <div class="day-number">第3天</div>
+            <div class="day-title">阳朔</div>
+        </div>
+        <div class="day-item" data-day="4">
+            <div class="day-number">第4天</div>
+            <div class="day-title">桂林~长沙</div>
+        </div>
+    </div>
+    
+    <!-- 视图切换按钮 -->
+    <div class="view-toggle">
+        <div class="toggle-btn active" data-view="itinerary">行程</div>
+        <div class="toggle-btn" data-view="map">地图</div>
+    </div>
+    
+    <!-- 主容器 -->
+    <div class="main-container">
+        <!-- 行程视图 -->
+        <div class="itinerary-view" id="itinerary-view">
+            <div class="day-header">
+                <div class="day-header-title">
+                    <span id="dayTitle"></span>
+                    <div class="weather" id="dayWeather">
+                        <span class="weather-icon">☀️</span>
+                        <span>加载中...</span>
+                    </div>
+                </div>
+                <div class="day-header-desc" id="dayDescription"></div>
+            </div>
+            
+            <div id="spotsContainer" class="itinerary-list">
+                <!-- 行程内容会由JS动态生成 -->
+            </div>
+        </div>
+        
+        <!-- 地图视图 -->
+        <div class="map-view" id="map-view">
+            <div id="map-container" class="map-container">
+                <!-- 地图会由API动态生成 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 引入自定义JS -->
+    <script src="js/config.js"></script>
+    <script src="js/main.js"></script>
+
+    <!-- 增强交互体验的JavaScript -->
+    <script>
+        // 设置固定配置
+        window.CONFIG = window.CONFIG || {};
+        window.CONFIG.usePoiId = false; // 使用坐标定位
+        window.CONFIG.weatherProvider = 'visualcrossing'; // 固定使用Visual Crossing
+        window.CONFIG.useCache = true; // 默认使用缓存
+        window.CONFIG.visualCrossingApiKey = 'XLH73AM2QFGG57GMSMJGXGXEW'; // 使用默认API Key
+
+        // 页面加载完成后移除加载状态
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                document.getElementById('pageLoading').classList.add('fade-out');
+                setTimeout(function() {
+                    document.getElementById('pageLoading').style.display = 'none';
+                }, 500);
+            }, 800);
+            
+            // 确保页面完全加载后绑定天数按钮点击事件
+            bindDayTabsClickEvent();
+        });
+        
+        // 专门用于绑定天数按钮点击事件的函数
+        function bindDayTabsClickEvent() {
+            console.log('绑定天数按钮点击事件');
+            // 为所有天数按钮添加点击事件（使用直接事件绑定）
+            var dayItems = document.querySelectorAll('.day-item');
+            
+            for (var i = 0; i < dayItems.length; i++) {
+                (function(index) {
+                    var item = dayItems[index];
+                    var dayNumber = parseInt(item.getAttribute('data-day'));
+                    
+                    // 移除可能已存在的点击事件（通过克隆节点）
+                    var newItem = item.cloneNode(true);
+                    item.parentNode.replaceChild(newItem, item);
+                    
+                    // 添加新的点击事件
+                    newItem.addEventListener('click', function() {
+                        console.log('直接点击了第' + dayNumber + '天按钮');
+                        // 直接调用main.js中的renderDayContent函数
+                        if (typeof window.renderDayContent === 'function') {
+                            window.renderDayContent(dayNumber);
+                        } else {
+                            console.error('renderDayContent函数不存在');
+                        }
+                    });
+                })(i);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始变量
+            let activeView = 'itinerary';
+            const itineraryView = document.getElementById('itinerary-view');
+            const mapView = document.getElementById('map-view');
+            const toggleBtns = document.querySelectorAll('.toggle-btn');
+            
+            // 视图切换逻辑
+            toggleBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const view = btn.getAttribute('data-view');
+                    setActiveView(view);
+                });
+            });
+            
+            // 设置活动视图
+            function setActiveView(view) {
+                activeView = view;
+                
+                // 更新切换按钮
+                toggleBtns.forEach(btn => {
+                    btn.classList.toggle('active', btn.getAttribute('data-view') === view);
+                });
+                
+                // 显示/隐藏视图
+                if (view === 'itinerary') {
+                    itineraryView.style.transform = 'translateX(0)';
+                    mapView.style.transform = 'translateX(100%)';
+                } else {
+                    itineraryView.style.transform = 'translateX(-100%)';
+                    mapView.style.transform = 'translateX(0)';
+                    
+                    // 确保地图正确调整大小
+                    if (window.map) {
+                        setTimeout(() => {
+                            window.map.resize();
+                        }, 300);
+                    }
+                }
+            }
+            
+            // 监听窗口调整大小
+            window.addEventListener('resize', function() {
+                if (window.map) {
+                    window.map.resize();
+                }
+            });
+            
+            // 修复原始的renderDayTabs方法被替换的问题
+            const originalRenderDayTabs = window.renderDayTabs;
+            if (!window.originalRenderDayTabsPatched && originalRenderDayTabs) {
+                window.originalRenderDayTabsPatched = true;
+                window.renderDayTabs = function() {
+                    // 不执行原来的函数，避免错误
+                    console.log('拦截了原始renderDayTabs调用');
+                    // 重新绑定天数按钮点击事件
+                    setTimeout(bindDayTabsClickEvent, 100);
+                };
+            }
+            
+            // 拦截原始的renderDayContent方法，增强UI
+            const originalRenderDayContent = window.renderDayContent;
+            if (originalRenderDayContent && !window.originalRenderDayContentPatched) {
+                window.originalRenderDayContentPatched = true;
+                window.renderDayContent = function(dayNumber) {
+                    // 调用原始方法保持功能
+                    originalRenderDayContent(dayNumber);
+                    
+                    // 保存当前活动天数到全局变量
+                    window.activeDay = dayNumber;
+                    
+                    // 更新日头部信息
+                    const day = tripData.dailySchedule.find(d => d.day === dayNumber);
+                    if (day) {
+                        // 直接更新头部信息，不再调用已删除的updateDayHeader函数
+                        const dayTitle = document.getElementById('dayTitle');
+                        const dayDescription = document.getElementById('dayDescription');
+                        if (dayTitle && dayDescription) {
+                            dayTitle.textContent = day.title;
+                            dayDescription.textContent = day.description;
+                        }
+                    }
+                };
+            }
+            
+            // 等待原始init执行完成后再执行我们的增强逻辑
+            const originalInit = window.init;
+            if (originalInit && !window.originalInitPatched) {
+                window.originalInitPatched = true;
+                
+                window.init = async function() {
+                    try {
+                        // 调用原始初始化函数
+                        await originalInit();
+                        
+                        // 确保数据加载完成后立即执行的操作
+                        if (window.tripData && window.tripData.dailySchedule) {
+                            console.log('数据加载完成，正在初始化界面');
+                            
+                            // 确保默认激活第一天
+                            if (!window.activeDay) {
+                                window.activeDay = 1;
+                            }
+                            
+                            // 更新日头部信息
+                            const day = tripData.dailySchedule.find(d => d.day === window.activeDay);
+                            if (day) {
+                                // 更新头部信息
+                                const dayTitle = document.getElementById('dayTitle');
+                                const dayDescription = document.getElementById('dayDescription');
+                                if (dayTitle && dayDescription) {
+                                    dayTitle.textContent = day.title;
+                                    dayDescription.textContent = day.description;
+                                }
+                            }
+                            
+                            // 确保行程内容正确显示
+                            window.renderDayContent(window.activeDay);
+                            
+                            // 重新绑定天数按钮事件
+                            setTimeout(bindDayTabsClickEvent, 300);
+                        }
+                    } catch (error) {
+                        console.error('增强UI初始化时出错:', error);
+                    }
+                };
+            }
+        });
+    </script>
+</body>
+</html> 
